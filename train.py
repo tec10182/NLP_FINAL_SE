@@ -11,8 +11,8 @@ from torch.optim.lr_scheduler import LambdaLR
 from transformers import RobertaModel, RobertaTokenizer
 from torch.utils.data import DataLoader
 
-from .model import *
-from .dataset import *
+from model import *
+from dataset import *
 
 
 def evaluate(model_F, model_B, model_C, dataloader, device):
@@ -53,21 +53,21 @@ def set_seed(seed):
 set_seed(42)
 
 parser = argparse.ArgumentParser(description="SE TTA")
-parser.add_argument("--epoch", type=int, default=50, help="Number of training epochs")
+parser.add_argument("--epoch", type=int, default=10, help="Number of training epochs")
 parser.add_argument(
-    "--batch_size", type=int, default=32, help="Batch size for training"
+    "--batch_size", type=int, default=16, help="Batch size for training"
 )
-parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
+parser.add_argument("--lr", type=float, default=2e-5, help="Learning rate")
 parser.add_argument(
     "--weight_decay", type=float, default=0.01, help="Weight decay for the optimizer"
 )
-parser.add_argument("--source", required=True, help="source dataset path")
+parser.add_argument("--source", required=True, help="source dataset")
 
 args = parser.parse_args()
 
-device = "gpu" if torch.cuda.is_available() else "cpu"
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
-tokenizer = RobertaTokenizer.from_pretrained(args.model_name)
+tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
 netF = RobertaModel.from_pretrained("roberta-base").to(device)
 
 mid_hidden_size = 256  # mid_hidden_size = netF.config.hidden_size
@@ -75,19 +75,26 @@ mid_hidden_size = 256  # mid_hidden_size = netF.config.hidden_size
 netB = BiGRU(input_size=netF.config.hidden_size, hidden_size=mid_hidden_size).to(device)
 netC = Classifier(hidden_size=mid_hidden_size, output_size=2).to(device)
 
-train_dataset = AmazonDataset(args.source, tokenizer)
-val_dataset = AmazonDataset(args.target, tokenizer)
 
-train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
+prefix = "datasets/amazon"
+
+domains = ["book", "dvd", "electronics", "kitchen"]
+loaders = {}
+
+for domain in domains:
+    dataset = AmazonDataset(
+        os.path.join(os.path.join(prefix, domain), "train.txt"), tokenizer
+    )
+    loaders[domain] = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
+
+train_loader = loaders[args.source]
+val_domains = [loaders[domain] for domain in domains if domain != args.source]
+
 
 params = list(netF.parameters()) + list(netB.parameters()) + list(netC.parameters())
 optimizer = AdamW(params, lr=args.lr, weight_decay=args.weight_decay)
 criterion = nn.CrossEntropyLoss()
 
-netF.train()
-netB.train()
-netC.train()
 
 total_loss = 0.0
 for epoch in range(args.epoch):
@@ -118,11 +125,11 @@ for epoch in range(args.epoch):
         loop.set_postfix(loss=loss.item())
 
     total_loss /= len(train_loader)
-    acc = evaluate(netF, netB, netC, val_loader)
+    for val in val_domains:
+        acc = evaluate(netF, netB, netC, val, device)
+        print(f"Accuracy: {acc:.4f}")
 
-    print(
-        f"Epoch [{epoch+1}/{args.epoch}] - Loss: {total_loss:.4f}, Accuracy: {acc:.4f}"
-    )
+    print(f"Epoch [{epoch+1}/{args.epoch}] - Loss: {total_loss:.4f}")
 
 
 save_dir = "outputs"
