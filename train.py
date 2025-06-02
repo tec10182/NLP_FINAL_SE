@@ -10,6 +10,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR
 from transformers import RobertaModel, RobertaTokenizer
 from torch.utils.data import DataLoader
+from transformers import BertModel, BertTokenizer
 
 from model import *
 from dataset import *
@@ -70,8 +71,14 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
 netF = RobertaModel.from_pretrained("roberta-base").to(device)
 
-mid_hidden_size = 256  # mid_hidden_size = netF.config.hidden_size
+# tokenizer = BertTokenizer.from_pretrained("prajjwal1/bert-tiny")
+# netF = BertModel.from_pretrained("prajjwal1/bert-tiny").to(device)
 
+# tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+# netF = BertModel.from_pretrained("bert-base-uncased").to(device)
+
+
+mid_hidden_size = netF.config.hidden_size // 2  # 256
 netB = BiGRU(input_size=netF.config.hidden_size, hidden_size=mid_hidden_size).to(device)
 netC = Classifier(hidden_size=mid_hidden_size, output_size=2).to(device)
 
@@ -125,14 +132,14 @@ for epoch in range(args.epoch):
         loop.set_postfix(loss=loss.item())
 
     total_loss /= len(train_loader)
-    for val in val_domains:
-        acc = evaluate(netF, netB, netC, val, device)
-        print(f"Accuracy: {acc:.4f}")
+    # for val in val_domains:
+    #     acc = evaluate(netF, netB, netC, val, device)
+    #     print(f"Accuracy: {acc:.4f}")
 
     print(f"Epoch [{epoch+1}/{args.epoch}] - Loss: {total_loss:.4f}")
 
 
-save_dir = "outputs"
+save_dir = os.path.join("outputs/base", args.source)
 os.makedirs(save_dir, exist_ok=True)
 
 torch.save(netF.state_dict(), os.path.join(save_dir, "netF.pth"))
