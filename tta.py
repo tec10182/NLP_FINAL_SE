@@ -147,19 +147,19 @@ netC = Classifier(hidden_size=mid_hidden_size, output_size=2).to(device)
 
 netF.load_state_dict(
     torch.load(
-        os.path.join("outputs/base", args.source, "netF.pth"),
+        os.path.join("workspace/NLP_FINAL/outputs/base", args.source, "netF.pth"),
         map_location=device,
     )
 )
 netB.load_state_dict(
     torch.load(
-        os.path.join("outputs/base", args.source, "netB.pth"),
+        os.path.join("workspace/NLP_FINAL/outputs/base", args.source, "netB.pth"),
         map_location=device,
     )
 )
 netC.load_state_dict(
     torch.load(
-        os.path.join("outputs/base", args.source, "netC.pth"),
+        os.path.join("workspace/NLP_FINAL/outputs/base", args.source, "netC.pth"),
         map_location=device,
     )
 )
@@ -181,7 +181,9 @@ prefix = "datasets/amazon"
 # test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
 
 if args.target == "sst":
-    test_dataset = StsDataset(file_path="datasets/sst/dev.tsv", tokenizer=tokenizer)
+    test_dataset = StsDataset(
+        file_path="workspace/NLP_FINAL/datasets/sst/dev.tsv", tokenizer=tokenizer
+    )
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True)
 else:
     test_dataset = AmazonDataset(

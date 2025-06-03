@@ -83,13 +83,15 @@ netB = BiGRU(input_size=netF.config.hidden_size, hidden_size=mid_hidden_size).to
 netC = Classifier(hidden_size=mid_hidden_size, output_size=2).to(device)
 
 
-prefix = "datasets/amazon"
+prefix = "workspace/NLP_FINAL/datasets/amazon"
 
 domains = ["book", "dvd", "electronics", "kitchen"]
 loaders = {}
 
 if args.source == "sst":
-    dataset = StsDataset(file_path="datasets/sst/train.tsv", tokenizer=tokenizer)
+    dataset = StsDataset(
+        file_path="workspace/NLP_FINAL/datasets/sst/train.tsv", tokenizer=tokenizer
+    )
     train_loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
 else:
     for domain in domains:
@@ -107,7 +109,7 @@ optimizer = AdamW(params, lr=args.lr, weight_decay=args.weight_decay)
 criterion = nn.CrossEntropyLoss()
 
 
-save_dir = os.path.join("outputs/base", args.source)
+save_dir = os.path.join("workspace/NLP_FINAL/outputs/base", args.source)
 os.makedirs(save_dir, exist_ok=True)
 
 
