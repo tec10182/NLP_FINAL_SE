@@ -147,17 +147,20 @@ netC = Classifier(hidden_size=mid_hidden_size, output_size=2).to(device)
 
 netF.load_state_dict(
     torch.load(
-        os.path.join("outputs/base", args.source, "netF.pth"), map_location=device
+        os.path.join("outputs/base", args.source, "netF.pth"),
+        map_location=device,
     )
 )
 netB.load_state_dict(
     torch.load(
-        os.path.join("outputs/base", args.source, "netB.pth"), map_location=device
+        os.path.join("outputs/base", args.source, "netB.pth"),
+        map_location=device,
     )
 )
 netC.load_state_dict(
     torch.load(
-        os.path.join("outputs/base", args.source, "netC.pth"), map_location=device
+        os.path.join("outputs/base", args.source, "netC.pth"),
+        map_location=device,
     )
 )
 
@@ -168,7 +171,7 @@ if args.freeze == "f":
 elif args.freeze == "b":
     for param in netB.parameters():
         param.requires_grad = False
-else:
+elif args.freeze == "c":
     for param in netC.parameters():
         param.requires_grad = False
 
@@ -177,8 +180,14 @@ prefix = "datasets/amazon"
 # test_dataset = AmazonDataset(os.path.join(prefix, args.target, "train.txt"), tokenizer)
 # test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
 
-test_dataset = StsDataset(tokenizer=tokenizer)
-test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
+if args.target == "sst":
+    test_dataset = StsDataset(file_path="datasets/sst/dev.tsv", tokenizer=tokenizer)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True)
+else:
+    test_dataset = AmazonDataset(
+        os.path.join(prefix, args.target, "train.txt"), tokenizer
+    )
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True)
 
 params = (
     list(netF.parameters()) + list(netB.parameters()) + list(netC.parameters())

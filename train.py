@@ -88,19 +88,27 @@ prefix = "datasets/amazon"
 domains = ["book", "dvd", "electronics", "kitchen"]
 loaders = {}
 
-for domain in domains:
-    dataset = AmazonDataset(
-        os.path.join(os.path.join(prefix, domain), "train.txt"), tokenizer
-    )
-    loaders[domain] = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
+if args.source == "sst":
+    dataset = StsDataset(file_path="datasets/sst/train.tsv", tokenizer=tokenizer)
+    train_loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
+else:
+    for domain in domains:
+        dataset = AmazonDataset(
+            os.path.join(os.path.join(prefix, domain), "train.txt"), tokenizer
+        )
+        loaders[domain] = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
 
-train_loader = loaders[args.source]
-val_domains = [loaders[domain] for domain in domains if domain != args.source]
+    train_loader = loaders[args.source]
+    val_domains = [loaders[domain] for domain in domains if domain != args.source]
 
 
 params = list(netF.parameters()) + list(netB.parameters()) + list(netC.parameters())
 optimizer = AdamW(params, lr=args.lr, weight_decay=args.weight_decay)
 criterion = nn.CrossEntropyLoss()
+
+
+save_dir = os.path.join("outputs/base", args.source)
+os.makedirs(save_dir, exist_ok=True)
 
 
 total_loss = 0.0
@@ -137,11 +145,6 @@ for epoch in range(args.epoch):
     #     print(f"Accuracy: {acc:.4f}")
 
     print(f"Epoch [{epoch+1}/{args.epoch}] - Loss: {total_loss:.4f}")
-
-
-save_dir = os.path.join("outputs/base", args.source)
-os.makedirs(save_dir, exist_ok=True)
-
-torch.save(netF.state_dict(), os.path.join(save_dir, "netF.pth"))
-torch.save(netB.state_dict(), os.path.join(save_dir, "netB.pth"))
-torch.save(netC.state_dict(), os.path.join(save_dir, "netC.pth"))
+    torch.save(netF.state_dict(), os.path.join(save_dir, "netF.pth"))
+    torch.save(netB.state_dict(), os.path.join(save_dir, "netB.pth"))
+    torch.save(netC.state_dict(), os.path.join(save_dir, "netC.pth"))
