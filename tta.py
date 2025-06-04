@@ -112,7 +112,7 @@ set_seed(42)
 
 
 parser = argparse.ArgumentParser(description="SE TTA")
-parser.add_argument("--epoch", type=int, default=50, help="Number of training epochs")
+parser.add_argument("--epoch", type=int, default=15, help="Number of training epochs")
 parser.add_argument(
     "--batch_size", type=int, default=128, help="Batch size for training"
 )
@@ -142,7 +142,6 @@ netF = RobertaModel.from_pretrained("roberta-base").to(device)
 
 mid_hidden_size = netF.config.hidden_size // 2  # 256
 netB = BiGRU(input_size=netF.config.hidden_size, hidden_size=mid_hidden_size).to(device)
-netC = Classifier(hidden_size=mid_hidden_size, output_size=2).to(device)
 netC = Classifier(hidden_size=mid_hidden_size, output_size=2).to(device)
 
 netF.load_state_dict(
@@ -175,7 +174,7 @@ elif args.freeze == "c":
     for param in netC.parameters():
         param.requires_grad = False
 
-prefix = "datasets/amazon"
+prefix = "workspace/NLP_FINAL/datasets/amazon"
 
 # test_dataset = AmazonDataset(os.path.join(prefix, args.target, "train.txt"), tokenizer)
 # test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
@@ -187,7 +186,8 @@ if args.target == "sst":
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True)
 else:
     test_dataset = AmazonDataset(
-        os.path.join(prefix, args.target, "train.txt"), tokenizer
+        os.path.join(prefix, args.target, "train.txt"),
+        tokenizer,
     )
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True)
 
@@ -221,21 +221,31 @@ for epoch in range(args.epoch):
         features = netB(embeddings)
         logits = netC(features)
 
-        netF.eval()
-        netB.eval()
-        netC.eval()
-        mem_label = obtain_label(batch, netF, netB, netC, device)
-        mem_label = torch.from_numpy(mem_label).cuda()
-        netF.train()
-        netB.train()
-        netC.train()
+        # netF.eval()
+        # netB.eval()
+        # netC.eval()
+        # mem_label = obtain_label(batch, netF, netB, netC, device)
+        # mem_label = torch.from_numpy(mem_label).cuda()
+        # netF.train()
+        # netB.train()
+        # netC.train()
 
         # classifier_loss = nn.CrossEntropyLoss()(logits, mem_label)
         # classifier_loss *= 0.3  # 0.3
         classifier_loss = 0
 
         softmax_out = F.softmax(logits, dim=1)
-        entropy_loss = torch.mean(Entropy(softmax_out))
+        entropy = Entropy(softmax_out)
+        mask = entropy >= 0.1
+        mask = mask <= 0.5
+        selected_entropy = entropy[mask]
+        # print(selected_entropy)
+        if selected_entropy.numel() > 0:
+            entropy_loss = torch.mean(selected_entropy)
+        else:
+            entropy_loss = torch.tensor(0.0, device=logits.device)
+
+        # entropy_loss = torch.mean(Entropy(softmax_out))
 
         msoftmax = softmax_out.mean(dim=0)
         gentropy_loss = torch.sum(-msoftmax * torch.log(msoftmax + 1e-5))
